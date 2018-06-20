@@ -3,3 +3,4 @@ geo/
 *.br
 *.css
 *.css.map
+client/node_modules
