@@ -1,22 +1,7 @@
-import MapboxClient from "mapbox";
-import mapboxgl, { Marker, Map } from "mapbox-gl";
-import mly from "mapillary-js";
+import { Marker } from "mapbox-gl";
 
-export default function() {
+export default function(map) {
   console.log({ mly });
-  const client = new MapboxClient(
-    "pk.eyJ1IjoiYnJldW5pZ3MiLCJhIjoiY2poeDIwOW14MDZsZTNxcHViajE0Y3Y5eCJ9._zBVNwelSOZOnRDEmwPGiA"
-  );
-
-  mapboxgl.accessToken =
-    "pk.eyJ1IjoiYnJldW5pZ3MiLCJhIjoiY2poeDIwOW14MDZsZTNxcHViajE0Y3Y5eCJ9._zBVNwelSOZOnRDEmwPGiA";
-
-  const map = new Map({
-    container: "map",
-    style: "mapbox://styles/mapbox/streets-v10",
-    center: [10.0188, 53.5778],
-    zoom: 11
-  });
 
   const zIndexBase = 650;
   const zIndexOffsetIcons = 2;
