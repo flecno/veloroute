@@ -1,6 +1,7 @@
 import MapboxClient from 'mapbox';
 import mapboxgl, { Marker, Map } from 'mapbox-gl';
 import mly from 'mapillary-js';
+import L from 'leaflet';
 
 export default function() {
   console.log({ mly });
@@ -40,7 +41,9 @@ export default function() {
     return element;
   }
 
-  // adds marker near Rathausmarkt where all routes originate from
+  /**
+   * adds marker near Rathausmarkt where all routes originate from
+   */
   function addCenterMarker() {
     const element = createIconDiv('0');
     element.innerHTML = '★';
@@ -51,7 +54,9 @@ export default function() {
 
   addCenterMarker();
 
-  // Adds a route marker with the given label and color exactly at the given coordinate.
+  /**
+   * Adds a route marker with the given label and color exactly at the given coordinate.
+   */
   function addMarker(route, coord, color) {
     const element = createIconDiv(route);
     const marker = new Marker({ element })
@@ -63,8 +68,10 @@ export default function() {
       });
   }
 
-  // Increases the zIndex for the given route. If there was a previously focused
-  // route, its zIndex will be reset.
+  /**
+   * Increases the zIndex for the given route. If there was a previously focused
+   * route, its zIndex will be reset.
+   */
   function bringRouteToForeground(route) {
     if (route == foregroundRoute) return;
     const elemNew = document.getElementById(`desc${route}`);
@@ -78,18 +85,26 @@ export default function() {
     setRouteZIndex(route, 1);
   }
 
+  /**
+   * sets the zIndex for both route and its icons to adhere to the offset.
+   * Pass 0 to reset to default values.
+   */
   function setRouteZIndex(route, zOffset) {
     if (!route || !map) return;
-    const mapPane = map.getPane(`route${route}`);
-    if (mapPane) mapPane.style.zIndex = zIndexBase + zOffset;
+    // const mapPane = map.getPane(`route${route}`);
+    // if (mapPane) mapPane.style.zIndex = zIndexBase + zOffset;
     document.querySelectorAll(`.route-icon${route}`).forEach(elem => {
       elem.style.zIndex = zIndexBase + zOffset + zIndexOffsetIcons;
     });
   }
 
+  /**
+   * addSnappedMarker takes the given coord and finds the closest start/end of the
+   * jsonResponse multilinestring GeoJSON. It then adds a marker to that endpoint.
+   */
   function addSnappedMarker(route, jsonResponse, coord, color) {
-    let lines = jsonResponse.features[0].geometry.coordinates;
-    let ref = L.latLng(coord);
+    const lines = jsonResponse.features[0].geometry.coordinates;
+    const ref = L.latLng(coord);
 
     let best = [coord, Number.MAX_VALUE];
 
@@ -99,140 +114,137 @@ export default function() {
     });
     addMarker(route, best[0], color);
   }
+
+  function createRoutePane(route, clickHandler) {
+    const bgPane = map.createPane('bg-route' + route);
+    bgPane.style.zIndex = zIndexBase + zIndexOffsetBackground;
+    bgPane.addEventListener('click', clickHandler);
+
+    const pane = map.createPane('route' + route);
+    pane.addEventListener('click', clickHandler);
+    pane.style.zIndex = zIndexBase;
+    return 'route' + route;
+  }
+
+  /**
+   * giveCloser checks if the given GeoJSON coordinate is closer to the reference
+   * point. If so, it returns a new "best".
+   */
+  function giveCloser(ref, best, lineCoord) {
+    let newCoord = [lineCoord[1], lineCoord[0]];
+    let newDist = ref.distanceTo(newCoord);
+    if (newDist < best[1]) return [newCoord, newDist];
+    return best;
+  }
+
+  function getRoute(route, details) {
+    const clickHandler = evt => {
+      bringRouteToForeground(route);
+      const coord = map.mouseEventToLatLng(evt).reverse();
+      if (typeof mly !== 'undefined') mly.goto(coord);
+    };
+
+    createRoutePane(route, clickHandler);
+
+    fetch('geo/route' + route + '.geojson')
+      .then(response => response.json())
+      .then(jsonResponse => {
+        L.geoJSON(jsonResponse, {
+          style: { weight: 5, color: '#fff', opacity: 0.7 },
+          pane: 'bg-route' + route,
+        }).addTo(map);
+
+        L.geoJSON(jsonResponse, {
+          style: { weight: 3, color: details.color, opacity: 0.8 },
+          pane: 'route' + route,
+        }).addTo(map);
+
+        if (details.markers && details.markers[0][0]) {
+          details.markers.forEach(coord =>
+            addSnappedMarker(route, jsonResponse, coord, details.color)
+          );
+        }
+      });
+  }
+
+  function setRouteColors(jsonResponse) {
+    Object.entries(jsonResponse).forEach(([route, details]) => {
+      let selector = '.route-icon' + route + ', .icon' + route;
+      let rules = 'background: ' + details.color + ';';
+      document.styleSheets[0].insertRule(selector + ' { ' + rules + ' }');
+    });
+  }
+
+  function toggleMapMly() {
+    if (toggleMapIsMain) {
+      elemBr.appendChild(elemMap);
+      elemMain.appendChild(elemMly);
+    } else {
+      elemBr.appendChild(elemMly);
+      elemMain.appendChild(elemMap);
+    }
+    if (mly.viewer.isNavigable) mly.viewer.resize();
+    map.invalidateSize();
+    toggleMapIsMain = !toggleMapIsMain;
+  }
+
+  function routeIconClick(evt) {
+    let route = evt.target.innerText;
+    bringRouteToForeground(route);
+  }
+
+  function zoomToName(name) {
+    const url = 'https://nominatim.openstreetmap.org/search/';
+    const params =
+      '?format=json&viewbox=9.5732117,53.3825092,10.4081726,53.794973&bounded=1&limit=1';
+
+    fetch(url + encodeURIComponent(name) + params)
+      .then(response => response.json())
+      .then(jsonResponse => {
+        console.log(jsonResponse);
+        const bbox = jsonResponse[0].boundingbox;
+        map.fitBounds(
+          [[bbox[0], bbox[2]].reverse(), [bbox[1], bbox[3]].reverse()],
+          {
+            maxZoom: 16,
+          }
+        );
+      });
+  }
+
+  function getTopLevelText(node) {
+    let child = node.firstChild;
+    let text = '';
+    while (child) {
+      if (child.nodeType == Node.TEXT_NODE) text += child.data;
+      child = child.nextSibling;
+    }
+    return text == '' ? null : text;
+  }
+
+  function getAndZoomToName(evt) {
+    if (evt.target.nodeName !== 'A') return;
+    // const text = getTopLevelText(evt.target);
+    // if(text) zoomToName(text);
+    zoomToName(evt.target.innerText);
+  }
+
+  fetch('routes.json')
+    .then(response => response.json())
+    .then(jsonResponse => {
+      Object.entries(jsonResponse).forEach(([route, details]) => {
+        getRoute(route, details);
+      });
+      setRouteColors(jsonResponse);
+    });
+
+  addCenterMarker();
+  bringRouteToForeground(1);
+  document.getElementById('toggle').onclick = toggleMapMly;
+  for (let link of document.querySelectorAll('a.icon')) {
+    link.addEventListener('click', routeIconClick);
+  }
+  for (let link of document.querySelectorAll('table.routing')) {
+    link.addEventListener('click', getAndZoomToName);
+  }
 }
-
-// // var map = mapboxgl.map('map', 'mapbox.light')
-
-//
-
-// // addSnappedMarker takes the given coord and finds the closest start/end of the
-// // jsonResponse multilinestring GeoJSON. It then adds a marker to that endpoint.
-
-// // giveCloser checks if the given GeoJSON coordinate is closer to the reference
-// // point. If so, it returns a new "best".
-// function giveCloser(ref, best, lineCoord) {
-//   let newCoord = [lineCoord[1], lineCoord[0]];
-//   let newDist = ref.distanceTo(newCoord);
-//   if (newDist < best[1]) return [newCoord, newDist];
-//   return best;
-// }
-
-// // sets the zIndex for both route and its icons to adhere to the offset. Pass 0
-// // to reset to default values.
-
-// function createRoutePane(route, clickHandler) {
-//   const bgPane = map.createPane("bg-route" + route);
-//   bgPane.style.zIndex = zIndexBase + zIndexOffsetBackground;
-//   bgPane.addEventListener("click", clickHandler);
-
-//   const pane = map.createPane("route" + route);
-//   pane.addEventListener("click", clickHandler);
-//   pane.style.zIndex = zIndexBase;
-//   return "route" + route;
-// }
-
-// function getRoute(route, details) {
-//   const clickHandler = evt => {
-//     bringRouteToForeground(route);
-//     let coord = map.mouseEventToLatLng(evt);
-//     if (typeof mly !== "undefined") mly.goto(coord);
-//   };
-
-//   createRoutePane(route, clickHandler);
-
-//   fetch("geo/route" + route + ".geojson")
-//     .then(response => response.json())
-//     .then(jsonResponse => {
-//       L.geoJSON(jsonResponse, {
-//         style: { weight: 5, color: "#fff", opacity: 0.7 },
-//         pane: "bg-route" + route
-//       }).addTo(map);
-
-//       L.geoJSON(jsonResponse, {
-//         style: { weight: 3, color: details.color, opacity: 0.8 },
-//         pane: "route" + route
-//       }).addTo(map);
-
-//       if (details.markers && details.markers[0][0]) {
-//         details.markers.forEach(coord =>
-//           addSnappedMarker(route, jsonResponse, coord, details.color)
-//         );
-//       }
-//     });
-// }
-
-// function setRouteColors(jsonResponse) {
-//   Object.entries(jsonResponse).forEach(([route, details]) => {
-//     let selector = ".route-icon" + route + ", .icon" + route;
-//     let rules = "background: " + details.color + ";";
-//     document.styleSheets[0].insertRule(selector + " { " + rules + " }");
-//   });
-// }
-
-// function toggleMapMly() {
-//   if (toggleMapIsMain) {
-//     elemBr.appendChild(elemMap);
-//     elemMain.appendChild(elemMly);
-//   } else {
-//     elemBr.appendChild(elemMly);
-//     elemMain.appendChild(elemMap);
-//   }
-//   if (mly.viewer.isNavigable) mly.viewer.resize();
-//   map.invalidateSize();
-//   toggleMapIsMain = !toggleMapIsMain;
-// }
-
-// function routeIconClick(evt) {
-//   let route = evt.target.innerText;
-//   bringRouteToForeground(route);
-// }
-
-// function zoomToName(name) {
-//   const url = "https://nominatim.openstreetmap.org/search/";
-//   const params =
-//     "?format=json&viewbox=9.5732117,53.3825092,10.4081726,53.794973&bounded=1&limit=1";
-
-//   fetch(url + encodeURIComponent(name) + params)
-//     .then(response => response.json())
-//     .then(jsonResponse => {
-//       console.log(jsonResponse);
-//       const bbox = jsonResponse[0].boundingbox;
-//       map.fitBounds([[bbox[0], bbox[2]], [bbox[1], bbox[3]]], { maxZoom: 16 });
-//     });
-// }
-
-// function getTopLevelText(node) {
-//   let child = node.firstChild;
-//   let text = "";
-//   while (child) {
-//     if (child.nodeType == Node.TEXT_NODE) text += child.data;
-//     child = child.nextSibling;
-//   }
-//   return text == "" ? null : text;
-// }
-
-// function getAndZoomToName(evt) {
-//   if (evt.target.nodeName !== "A") return;
-//   // const text = getTopLevelText(evt.target);
-//   // if(text) zoomToName(text);
-//   zoomToName(evt.target.innerText);
-// }
-
-// fetch("routes.json")
-//   .then(response => response.json())
-//   .then(jsonResponse => {
-//     Object.entries(jsonResponse).forEach(([route, details]) => {
-//       getRoute(route, details);
-//     });
-//     setRouteColors(jsonResponse);
-//   });
-
-// addCenterMarker();
-// bringRouteToForeground(1);
-// document.getElementById("toggle").onclick = toggleMapMly;
-// for (let link of document.querySelectorAll("a.icon")) {
-//   link.addEventListener("click", routeIconClick);
-// }
-// for (let link of document.querySelectorAll("table.routing")) {
-//   link.addEventListener("click", getAndZoomToName);
-// }
