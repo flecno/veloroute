@@ -43,6 +43,7 @@ export default function() {
   // adds marker near Rathausmarkt where all routes originate from
   function addCenterMarker() {
     const element = createIconDiv("0");
+    element.innerHTML = "★";
     const marker = new Marker({ element })
       .setLngLat([9.99421, 53.55053])
       .addTo(map);
