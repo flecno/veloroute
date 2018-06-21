@@ -1,4 +1,4 @@
-import "../assets/base.scss";
-import Raster from "./modules/Raster";
+import '../assets/base.scss';
+import Raster from './modules/Raster';
 
 Raster();

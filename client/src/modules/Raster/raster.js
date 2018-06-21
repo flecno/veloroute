@@ -1,39 +1,39 @@
-import MapboxClient from "mapbox";
-import mapboxgl, { Marker, Map } from "mapbox-gl";
-import mly from "mapillary-js";
+import MapboxClient from 'mapbox';
+import mapboxgl, { Marker, Map } from 'mapbox-gl';
+import mly from 'mapillary-js';
 
 export default function() {
   console.log({ mly });
   const client = new MapboxClient(
-    "pk.eyJ1IjoiYnJldW5pZ3MiLCJhIjoiY2poeDIwOW14MDZsZTNxcHViajE0Y3Y5eCJ9._zBVNwelSOZOnRDEmwPGiA"
+    'pk.eyJ1IjoiYnJldW5pZ3MiLCJhIjoiY2poeDIwOW14MDZsZTNxcHViajE0Y3Y5eCJ9._zBVNwelSOZOnRDEmwPGiA'
   );
 
   mapboxgl.accessToken =
-    "pk.eyJ1IjoiYnJldW5pZ3MiLCJhIjoiY2poeDIwOW14MDZsZTNxcHViajE0Y3Y5eCJ9._zBVNwelSOZOnRDEmwPGiA";
+    'pk.eyJ1IjoiYnJldW5pZ3MiLCJhIjoiY2poeDIwOW14MDZsZTNxcHViajE0Y3Y5eCJ9._zBVNwelSOZOnRDEmwPGiA';
 
   const map = new Map({
-    container: "map",
-    style: "mapbox://styles/mapbox/streets-v10",
+    container: 'map',
+    style: 'mapbox://styles/mapbox/streets-v10',
     center: [10.0188, 53.5778],
-    zoom: 11
+    zoom: 11,
   });
 
   const zIndexBase = 650;
   const zIndexOffsetIcons = 2;
   const zIndexOffsetBackground = -2;
 
-  const elemMain = document.getElementById("main");
-  const elemBr = document.getElementById("bottomright");
-  const elemMap = document.getElementById("map");
-  const elemMly = document.getElementById("mly");
+  const elemMain = document.getElementById('main');
+  const elemBr = document.getElementById('bottomright');
+  const elemMap = document.getElementById('map');
+  const elemMly = document.getElementById('mly');
 
   let foregroundRoute = null;
   let toggleMapIsMain = true;
   // map.createPane("marker").style.zIndex = zIndexBase + zIndexOffsetIcons;
 
   function createIconDiv(index) {
-    const element = document.createElement("div");
-    element.classList.add("route-icon");
+    const element = document.createElement('div');
+    element.classList.add('route-icon');
     element.classList.add(`route-icon${index}`);
     document.body.appendChild(element);
 
@@ -42,8 +42,8 @@ export default function() {
 
   // adds marker near Rathausmarkt where all routes originate from
   function addCenterMarker() {
-    const element = createIconDiv("0");
-    element.innerHTML = "★";
+    const element = createIconDiv('0');
+    element.innerHTML = '★';
     const marker = new Marker({ element })
       .setLngLat([9.99421, 53.55053])
       .addTo(map);
@@ -57,9 +57,9 @@ export default function() {
     const marker = new Marker({ element })
       .setLngLat(coord)
       .addTo(map)
-      .on("click", evt => {
+      .on('click', evt => {
         bringRouteToForeground(route);
-        if (typeof mly !== "undefined") mly.goto(evt.latlng);
+        if (typeof mly !== 'undefined') mly.goto(evt.latlng);
       });
   }
 
@@ -70,11 +70,11 @@ export default function() {
     const elemNew = document.getElementById(`desc${route}`);
     const elemOld = document.getElementById(`desc${foregroundRoute}`);
     // demote old
-    if (elemOld) elemOld.style.display = "none";
+    if (elemOld) elemOld.style.display = 'none';
     setRouteZIndex(foregroundRoute, 0);
     // promote new
     foregroundRoute = route;
-    if (elemNew) elemNew.style.display = "block";
+    if (elemNew) elemNew.style.display = 'block';
     setRouteZIndex(route, 1);
   }
 
