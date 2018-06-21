@@ -1,7 +1,7 @@
 import routes from "../../../assets/routes.json";
 
 function addRouteV1(route, options, map) {
-  fetch("/assets/geo/route" + route + ".geojson")
+  fetch("/geo/route" + route + ".geojson")
     .then(response => response.json())
     .then(jsonResponse => {
       let layer = {
