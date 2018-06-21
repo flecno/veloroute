@@ -4,3 +4,5 @@ geo/
 *.css
 *.css.map
 client/node_modules
+client/dist
+client/assets/geo
