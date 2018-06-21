@@ -1,5 +1,6 @@
 const path = require("path");
 const HtmlWebpackPlugin = require("html-webpack-plugin");
+const CopyWebpackPlugin = require("copy-webpack-plugin");
 
 module.exports = {
   entry: "./src/index.js",
@@ -17,6 +18,10 @@ module.exports = {
           "css-loader", // translates CSS into CommonJS
           "sass-loader" // compiles Sass to CSS
         ]
+      },
+      {
+        test: /\.geojson$/,
+        loader: "json-loader"
       }
     ]
   },
@@ -30,6 +35,7 @@ module.exports = {
       template: "index.html",
       minify: true,
       hash: true
-    })
+    }),
+    new CopyWebpackPlugin([{ from: "../geo", to: "geo" }])
   ]
 };
